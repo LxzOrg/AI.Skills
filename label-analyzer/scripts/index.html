@@ -6,182 +6,336 @@
 <title>Label Analyzer</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Noto Sans TC', sans-serif; padding: 16px; background: #f5f5f5; color: #333; }
-  h2 { font-size: 18px; margin-bottom: 12px; color: #1a73e8; display: flex; align-items: center; gap: 8px; }
-  h3 { font-size: 15px; margin: 16px 0 8px; color: #555; }
-  .card { background: #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.08); margin-bottom: 16px; }
-  .card-header { padding: 10px 14px; font-size: 14px; font-weight: 600; color: #fff; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Noto Sans TC', sans-serif; padding: 12px; background: #f5f5f5; color: #333; font-size: 14px; }
+  h2 { font-size: 17px; margin-bottom: 10px; color: #1a73e8; }
+  .card { background: #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.08); margin-bottom: 12px; }
+  .card-header { padding: 9px 14px; font-size: 13px; font-weight: 600; color: #fff; display: flex; align-items: center; justify-content: space-between; }
   .card-header.blue { background: #1a73e8; }
   .card-header.green { background: #0d904f; }
   .card-header.orange { background: #e8710a; }
+  .card-header.purple { background: #7b1fa2; }
   table { width: 100%; border-collapse: collapse; }
-  th { background: #f0f4f9; padding: 8px 10px; font-size: 12px; text-align: left; color: #555; border-bottom: 2px solid #e0e0e0; }
-  td { padding: 8px 10px; font-size: 13px; border-bottom: 1px solid #f0f0f0; }
+  th { background: #f0f4f9; padding: 7px 8px; font-size: 11px; text-align: left; color: #555; border-bottom: 2px solid #e0e0e0; }
+  td { padding: 7px 8px; font-size: 12px; border-bottom: 1px solid #f0f0f0; }
   tr:last-child td { border-bottom: none; }
   .warn { color: #d93025; font-weight: 600; }
-  .tag { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 10px; font-weight: 500; }
+  .tag { display: inline-block; font-size: 10px; padding: 2px 7px; border-radius: 10px; font-weight: 500; }
   .tag-ok { background: #e6f4ea; color: #137333; }
   .tag-warn { background: #fce8e6; color: #c5221f; }
-  .stats { padding: 14px; }
-  .stat-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px; border-bottom: 1px solid #f5f5f5; }
+  .tag-expired { background: #c5221f; color: #fff; }
+  .stats { padding: 12px; }
+  .stat-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 13px; border-bottom: 1px solid #f5f5f5; }
   .stat-row:last-child { border-bottom: none; }
   .stat-label { color: #777; }
   .stat-value { font-weight: 600; }
-  .btn { display: block; width: 100%; padding: 12px; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; margin-top: 12px; transition: all 0.2s; }
-  .btn-primary { background: #1a73e8; color: #fff; }
-  .btn-primary:active { background: #1557b0; }
-  .btn:disabled { background: #e0e0e0; color: #999; }
-  .btn-success { background: #0d904f; color: #fff; }
-  .btn-error { background: #d93025; color: #fff; }
-  #status { margin-top: 8px; font-size: 13px; text-align: center; padding: 4px; }
-  .badge { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 22px; border-radius: 11px; background: #1a73e8; color: #fff; font-size: 12px; font-weight: 600; padding: 0 6px; }
+  .badge { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; border-radius: 10px; background: rgba(255,255,255,0.3); color: #fff; font-size: 11px; font-weight: 600; padding: 0 6px; }
+
+  /* Export buttons */
+  .export-section { margin-top: 4px; }
+  .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .btn { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 11px 8px; border: none; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s; width: 100%; }
+  .btn-full { grid-column: 1 / -1; }
+  .btn-share { background: #1a73e8; color: #fff; }
+  .btn-copy { background: #fff; color: #1a73e8; border: 2px solid #1a73e8; }
+  .btn-upload { background: #0d904f; color: #fff; }
+  .btn:active { transform: scale(0.97); opacity: 0.9; }
+  .btn:disabled { opacity: 0.4; transform: none; }
+  .btn-done { background: #e8f5e9 !important; color: #2e7d32 !important; border-color: #2e7d32 !important; }
+  .btn-fail { background: #fce8e6 !important; color: #c5221f !important; border-color: #c5221f !important; }
+  #status { text-align: center; font-size: 12px; margin-top: 6px; min-height: 18px; }
 </style>
 </head>
 <body>
 <div id="app"><p style="color:#999;text-align:center;padding:40px 0;">載入中...</p></div>
 
 <script>
+// ─── Globals ───
+let _data = [];
+let _summary = [];
+let _webhookUrl = null;
+
+// ─── Entry point ───
 window.ai_edge_gallery_get_result = async function(inputJson, secret) {
   try {
     const input = JSON.parse(inputJson);
-    const data = input.data || [];
-    const summary = input.summary || [];
+    _data = input.data || [];
+    _summary = input.summary || [];
     const action = input.action || 'display';
-    const webhookUrl = (secret && secret !== 'skip') ? secret.trim() : null;
+    _webhookUrl = (secret && secret !== 'skip' && secret.trim() !== '') ? secret.trim() : null;
+
+    render(action);
 
     const today = new Date();
     const in30 = new Date(today.getTime() + 30 * 86400000);
-
-    // --- Detail Table ---
-    let html = '<h2>📋 食品標籤分析報表</h2>';
-
-    html += '<div class="card"><div class="card-header blue">明細表 <span class="badge">' + data.length + '</span></div>';
-    html += '<table><tr><th>#</th><th>品名</th><th>淨重</th><th>有效日期</th><th>狀態</th></tr>';
-    data.forEach((item, i) => {
-      const exp = parseDate(item.expiry_date);
-      const isExpired = exp && exp < today;
-      const isExpiring = exp && !isExpired && exp <= in30;
-      let statusTag = '<span class="tag tag-ok">正常</span>';
-      if (isExpired) statusTag = '<span class="tag tag-warn">已過期</span>';
-      else if (isExpiring) statusTag = '<span class="tag tag-warn">即將到期</span>';
-
-      html += '<tr>' +
-        '<td>' + (i + 1) + '</td>' +
-        '<td><strong>' + esc(item.product_name) + '</strong></td>' +
-        '<td>' + esc(item.net_weight) + '</td>' +
-        '<td>' + esc(item.expiry_date) + '</td>' +
-        '<td>' + statusTag + '</td>' +
-        '</tr>';
-    });
-    html += '</table></div>';
-
-    // --- Summary Table ---
-    if (summary.length > 0) {
-      html += '<div class="card"><div class="card-header green">按有效日期合計 <span class="badge">' + summary.length + ' 組</span></div>';
-      html += '<table><tr><th>有效日期</th><th>數量</th><th>品名</th><th>合計淨重</th></tr>';
-      summary.forEach(row => {
-        html += '<tr>' +
-          '<td><strong>' + esc(row.expiry_date) + '</strong></td>' +
-          '<td>' + row.count + '</td>' +
-          '<td>' + esc(row.products) + '</td>' +
-          '<td>' + esc(row.total_weight) + '</td>' +
-          '</tr>';
-      });
-      html += '</table></div>';
-    }
-
-    // --- Stats ---
-    const dates = data.map(d => parseDate(d.expiry_date)).filter(Boolean).sort((a,b) => a - b);
-    const expiredCount = data.filter(d => { const e = parseDate(d.expiry_date); return e && e < today; }).length;
-    const expiringCount = data.filter(d => { const e = parseDate(d.expiry_date); return e && e >= today && e <= in30; }).length;
-
-    html += '<div class="card"><div class="card-header orange">統計摘要</div><div class="stats">';
-    html += statRow('總產品數', data.length + ' 項');
-    if (dates.length > 0) {
-      html += statRow('最近到期', fmt(dates[0]));
-      html += statRow('最遠到期', fmt(dates[dates.length - 1]));
-    }
-    if (expiredCount > 0) html += statRow('⛔ 已過期', '<span class="warn">' + expiredCount + ' 項</span>');
-    if (expiringCount > 0) html += statRow('⚠️ 30天內到期', '<span class="warn">' + expiringCount + ' 項</span>');
-    const okCount = data.length - expiredCount - expiringCount;
-    if (okCount > 0) html += statRow('✅ 狀態正常', okCount + ' 項');
-    html += '</div></div>';
-
-    // --- Upload Button ---
-    if (action === 'upload' && webhookUrl) {
-      html += '<button class="btn btn-primary" id="uploadBtn" onclick="doUpload()">📤 上傳至 Google Sheets</button>';
-      html += '<div id="status"></div>';
-      window._uploadData = { data: data, summary: summary };
-      window._webhookUrl = webhookUrl;
-    } else if (action === 'upload' && !webhookUrl) {
-      html += '<div style="text-align:center;color:#d93025;padding:12px;font-size:13px;">⚠️ 未設定 Web App URL，無法上傳。請在 secret 欄位輸入你的 Google Apps Script 部署網址。</div>';
-    }
-
-    document.getElementById('app').innerHTML = html;
+    const expiredCount = _data.filter(d => { const e = pDate(d.expiry_date); return e && e < today; }).length;
+    const expiringCount = _data.filter(d => { const e = pDate(d.expiry_date); return e && e >= today && e <= in30; }).length;
 
     return JSON.stringify({
       status: 'success',
-      total_items: data.length,
+      total_items: _data.length,
       expired: expiredCount,
       expiring_soon: expiringCount,
-      message: action === 'upload' && webhookUrl
-        ? '報表已產生，請點擊按鈕上傳至 Google Sheets。'
-        : '報表已產生完成。'
+      message: '報表已產生。可使用分享、複製或上傳功能匯出。'
     });
-
   } catch (e) {
-    document.getElementById('app').innerHTML = '<div style="padding:20px;color:#d93025;">❌ 解析錯誤：' + esc(e.message) + '</div>';
+    document.getElementById('app').innerHTML = '<div style="padding:20px;color:#d93025;">❌ ' + esc(e.message) + '</div>';
     return JSON.stringify({ status: 'error', message: e.message });
   }
 };
 
+// ─── Render ───
+function render(action) {
+  const today = new Date();
+  const in30 = new Date(today.getTime() + 30 * 86400000);
+
+  let html = '<h2>📋 食品標籤分析報表</h2>';
+
+  // Detail table
+  html += '<div class="card"><div class="card-header blue">明細表 <span class="badge">' + _data.length + '</span></div>';
+  html += '<table><tr><th>#</th><th>品名</th><th>淨重</th><th>有效日期</th><th>狀態</th></tr>';
+  _data.forEach((item, i) => {
+    const exp = pDate(item.expiry_date);
+    const isExpired = exp && exp < today;
+    const isExpiring = exp && !isExpired && exp <= in30;
+    let tag = '<span class="tag tag-ok">正常</span>';
+    if (isExpired) tag = '<span class="tag tag-expired">已過期</span>';
+    else if (isExpiring) tag = '<span class="tag tag-warn">即將到期</span>';
+    html += '<tr><td>' + (i+1) + '</td><td><strong>' + esc(item.product_name) + '</strong></td><td>' + esc(item.net_weight) + '</td><td>' + esc(item.expiry_date) + '</td><td>' + tag + '</td></tr>';
+  });
+  html += '</table></div>';
+
+  // Summary table
+  if (_summary.length > 0) {
+    html += '<div class="card"><div class="card-header green">按有效日期合計 <span class="badge">' + _summary.length + ' 組</span></div>';
+    html += '<table><tr><th>有效日期</th><th>數量</th><th>品名</th><th>合計淨重</th></tr>';
+    _summary.forEach(row => {
+      html += '<tr><td><strong>' + esc(row.expiry_date) + '</strong></td><td>' + row.count + '</td><td>' + esc(row.products) + '</td><td>' + esc(row.total_weight) + '</td></tr>';
+    });
+    html += '</table></div>';
+  }
+
+  // Stats
+  const dates = _data.map(d => pDate(d.expiry_date)).filter(Boolean).sort((a,b) => a-b);
+  const expiredCount = _data.filter(d => { const e = pDate(d.expiry_date); return e && e < today; }).length;
+  const expiringCount = _data.filter(d => { const e = pDate(d.expiry_date); return e && e >= today && e <= in30; }).length;
+  const okCount = _data.length - expiredCount - expiringCount;
+
+  html += '<div class="card"><div class="card-header orange">統計摘要</div><div class="stats">';
+  html += sRow('總產品數', _data.length + ' 項');
+  if (dates.length > 0) {
+    html += sRow('最近到期', fmt(dates[0]));
+    html += sRow('最遠到期', fmt(dates[dates.length - 1]));
+  }
+  if (expiredCount > 0) html += sRow('⛔ 已過期', '<span class="warn">' + expiredCount + ' 項</span>');
+  if (expiringCount > 0) html += sRow('⚠️ 30天內到期', '<span class="warn">' + expiringCount + ' 項</span>');
+  if (okCount > 0) html += sRow('✅ 狀態正常', okCount + ' 項');
+  html += '</div></div>';
+
+  // ─── Export buttons ───
+  html += '<div class="card export-section"><div class="card-header purple">匯出至 Google Sheets</div>';
+  html += '<div style="padding:10px;">';
+  html += '<div class="btn-grid">';
+
+  // Row 1: Share CSV + Copy
+  html += '<button class="btn btn-share" id="btnShare" onclick="doShare()">📤 分享 CSV</button>';
+  html += '<button class="btn btn-copy" id="btnCopy" onclick="doCopy()">📋 複製表格</button>';
+
+  // Row 2: Upload (only if webhook URL is set)
+  if (_webhookUrl) {
+    html += '<button class="btn btn-upload btn-full" id="btnUpload" onclick="doUpload()">☁️ 自動上傳至 Sheets</button>';
+  }
+
+  html += '</div>';
+  html += '<div id="status"></div>';
+
+  // Help text
+  if (!_webhookUrl) {
+    html += '<p style="font-size:11px;color:#999;margin-top:8px;line-height:1.5;">💡 <strong>分享 CSV</strong>：產生 CSV 檔，透過手機分享選單直接傳到 Google Sheets 或雲端硬碟。<br><strong>複製表格</strong>：複製 Tab 分隔資料到剪貼簿，直接貼進 Sheets。</p>';
+  } else {
+    html += '<p style="font-size:11px;color:#999;margin-top:8px;line-height:1.5;">💡 已設定 API URL，可使用「自動上傳」直接寫入 Google Sheets。</p>';
+  }
+
+  html += '</div></div>';
+
+  document.getElementById('app').innerHTML = html;
+}
+
+// ─── Share CSV via Web Share API ───
+async function doShare() {
+  const btn = document.getElementById('btnShare');
+  const status = document.getElementById('status');
+
+  try {
+    const csv = buildCSV();
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' }); // BOM for Excel/Sheets
+    const file = new File([blob], 'label-report-' + dateStamp() + '.csv', { type: 'text/csv' });
+
+    if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({
+        title: '食品標籤分析報表',
+        text: '共 ' + _data.length + ' 項產品',
+        files: [file]
+      });
+      btnOk(btn, '✅ 已分享');
+      status.textContent = '';
+    } else {
+      // Fallback: download
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = file.name;
+      a.click();
+      URL.revokeObjectURL(url);
+      btnOk(btn, '✅ 已下載');
+      status.textContent = '檔案已下載：' + file.name;
+      status.style.color = '#0d904f';
+    }
+  } catch (e) {
+    if (e.name === 'AbortError') {
+      status.textContent = '已取消分享';
+      status.style.color = '#999';
+    } else {
+      btnFail(btn, '❌ 分享失敗');
+      status.textContent = e.message;
+      status.style.color = '#d93025';
+    }
+  }
+}
+
+// ─── Copy TSV to Clipboard ───
+async function doCopy() {
+  const btn = document.getElementById('btnCopy');
+  const status = document.getElementById('status');
+
+  try {
+    const tsv = buildTSV();
+    await navigator.clipboard.writeText(tsv);
+    btnOk(btn, '✅ 已複製');
+    status.textContent = '已複製到剪貼簿，請到 Google Sheets 貼上（Ctrl+V）';
+    status.style.color = '#0d904f';
+  } catch (e) {
+    // Fallback: textarea select
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = buildTSV();
+      ta.style.cssText = 'position:fixed;opacity:0;';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      btnOk(btn, '✅ 已複製');
+      status.textContent = '已複製到剪貼簿';
+      status.style.color = '#0d904f';
+    } catch (e2) {
+      btnFail(btn, '❌ 複製失敗');
+      status.textContent = '無法存取剪貼簿';
+      status.style.color = '#d93025';
+    }
+  }
+}
+
+// ─── Upload via webhook (SheetDB / Apps Script) ───
 async function doUpload() {
-  const btn = document.getElementById('uploadBtn');
+  const btn = document.getElementById('btnUpload');
   const status = document.getElementById('status');
   btn.disabled = true;
   btn.textContent = '⏳ 上傳中...';
   status.textContent = '';
 
   try {
-    await fetch(window._webhookUrl, {
+    const isSheetDB = _webhookUrl.includes('sheetdb.io');
+    let payload, headers = { 'Content-Type': 'application/json' };
+
+    if (isSheetDB) {
+      // SheetDB format: { data: [ {col: val, ...} ] }
+      const rows = _data.map((item, i) => ({
+        '序號': i + 1,
+        '品名': item.product_name || '',
+        '淨重': item.net_weight || '',
+        '有效日期': item.expiry_date || '',
+        '上傳時間': new Date().toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' })
+      }));
+      payload = JSON.stringify({ data: rows });
+    } else {
+      // Apps Script format
+      payload = JSON.stringify({ data: _data, summary: _summary });
+    }
+
+    await fetch(_webhookUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(window._uploadData),
-      mode: 'no-cors'
+      headers: headers,
+      body: payload,
+      mode: isSheetDB ? 'cors' : 'no-cors'
     });
+
     btn.textContent = '✅ 上傳成功';
-    btn.className = 'btn btn-success';
-    status.textContent = '資料已成功寫入 Google Sheets！';
+    btn.className = 'btn btn-upload btn-full btn-done';
+    status.textContent = '資料已寫入 Google Sheets！';
     status.style.color = '#0d904f';
   } catch (e) {
-    btn.textContent = '❌ 上傳失敗，點擊重試';
-    btn.className = 'btn btn-error';
+    btn.textContent = '❌ 失敗，點擊重試';
+    btn.className = 'btn btn-upload btn-full btn-fail';
     btn.disabled = false;
-    status.textContent = '錯誤：' + e.message;
+    status.textContent = e.message;
     status.style.color = '#d93025';
   }
 }
 
-function parseDate(s) {
+// ─── Data builders ───
+function buildCSV() {
+  let csv = '序號,品名,淨重,有效日期,狀態\n';
+  const today = new Date();
+  const in30 = new Date(today.getTime() + 30 * 86400000);
+  _data.forEach((item, i) => {
+    const exp = pDate(item.expiry_date);
+    let st = '正常';
+    if (exp && exp < today) st = '已過期';
+    else if (exp && exp <= in30) st = '即將到期';
+    csv += (i+1) + ',' + csvEsc(item.product_name) + ',' + csvEsc(item.net_weight) + ',' + csvEsc(item.expiry_date) + ',' + st + '\n';
+  });
+  if (_summary.length > 0) {
+    csv += '\n有效日期,產品數量,品名列表,合計淨重\n';
+    _summary.forEach(row => {
+      csv += csvEsc(row.expiry_date) + ',' + row.count + ',' + csvEsc(row.products) + ',' + csvEsc(row.total_weight) + '\n';
+    });
+  }
+  return csv;
+}
+
+function buildTSV() {
+  let tsv = '序號\t品名\t淨重\t有效日期\n';
+  _data.forEach((item, i) => {
+    tsv += (i+1) + '\t' + (item.product_name||'') + '\t' + (item.net_weight||'') + '\t' + (item.expiry_date||'') + '\n';
+  });
+  if (_summary.length > 0) {
+    tsv += '\n有效日期\t產品數量\t品名列表\t合計淨重\n';
+    _summary.forEach(row => {
+      tsv += (row.expiry_date||'') + '\t' + row.count + '\t' + (row.products||'') + '\t' + (row.total_weight||'') + '\n';
+    });
+  }
+  return tsv;
+}
+
+// ─── Helpers ───
+function pDate(s) {
   if (!s) return null;
   const d = new Date(s.replace(/\//g, '-'));
   return isNaN(d.getTime()) ? null : d;
 }
-
 function fmt(d) {
   return d.getFullYear() + '/' + String(d.getMonth()+1).padStart(2,'0') + '/' + String(d.getDate()).padStart(2,'0');
 }
-
-function statRow(label, value) {
+function dateStamp() {
+  const d = new Date();
+  return d.getFullYear() + '' + String(d.getMonth()+1).padStart(2,'0') + String(d.getDate()).padStart(2,'0') + '-' + String(d.getHours()).padStart(2,'0') + String(d.getMinutes()).padStart(2,'0');
+}
+function sRow(label, value) {
   return '<div class="stat-row"><span class="stat-label">' + label + '</span><span class="stat-value">' + value + '</span></div>';
 }
-
-function esc(s) {
-  if (s == null) return '';
-  const d = document.createElement('div');
-  d.textContent = String(s);
-  return d.innerHTML;
-}
+function esc(s) { if (s == null) return ''; const d = document.createElement('div'); d.textContent = String(s); return d.innerHTML; }
+function csvEsc(s) { if (s == null) return ''; s = String(s); return s.includes(',') || s.includes('"') || s.includes('\n') ? '"' + s.replace(/"/g, '""') + '"' : s; }
+function btnOk(btn, text) { btn.textContent = text; btn.classList.add('btn-done'); setTimeout(() => { btn.textContent = btn.id === 'btnShare' ? '📤 分享 CSV' : '📋 複製表格'; btn.classList.remove('btn-done'); }, 2500); }
+function btnFail(btn, text) { btn.textContent = text; btn.classList.add('btn-fail'); setTimeout(() => { btn.textContent = btn.id === 'btnShare' ? '📤 分享 CSV' : '📋 複製表格'; btn.classList.remove('btn-fail'); }, 3000); }
 </script>
 </body>
 </html>
